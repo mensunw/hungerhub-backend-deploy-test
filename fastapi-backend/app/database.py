@@ -17,6 +17,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # base class for defining database models (all database tabels with inherit from this class to map python classes to tables)
 Base = declarative_base()
 
+# create all tables and import models -- may need to change later (recreates table after every change to schema)
+from app.models import User
+Base.metadata.create_all(bind=engine)
 
 # create a new session, and allow for injection in FastAPI
 def get_db():
