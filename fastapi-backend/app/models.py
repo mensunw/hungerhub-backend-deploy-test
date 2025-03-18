@@ -9,9 +9,9 @@ class User(Base):
     # primary key is the id
     id = Column(Integer, primary_key=True, index=True)
 
-    # user credentials: email and password (hashed)
+    # user credentials: email and password -- will need to hash it in the future (just keep it the same for now)
     email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
+    password = Column(String)
 
 '''
 SQLAlchemy will create a corresponding table like this:
@@ -19,7 +19,7 @@ SQLAlchemy will create a corresponding table like this:
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR UNIQUE,
-    hashed_password VARCHAR
+    password VARCHAR
 );
 
 '''
