@@ -23,3 +23,34 @@ CREATE TABLE users (
 );
 
 '''
+
+
+# defines the python class that will be used for the events table
+class Event(Base):
+    # actual table name in the database
+    __tablename__ = "events"
+
+    # primary key is the id
+    id = Column(Integer, primary_key=True, index=True)
+
+    # event details -- name, description, location, date, and time
+    name = Column(String, index=True)
+    description = Column(String, unique=True, index=True)
+    location = Column(String, index=True)
+    date = Column(String, index=True)
+    time = Column(String, index=True)
+
+
+'''
+SQLAlchemy will create a corresponding table like this:
+
+CREATE TABLE events (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR UNIQUE,
+    description VARCHAR,
+    location VARCHAR,
+    date VARCHAR,
+    time VARCHAR
+);
+
+'''
