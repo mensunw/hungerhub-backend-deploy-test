@@ -56,9 +56,11 @@ docker-compose down
 FastAPI's documentation is available at: http://127.0.0.1:8000/docs (allows us to test the endpoint requests and responses)
 - /signup will return the user's registered email and ID key on success.
 - /login will return the "Login successful" message on success.
+- /create-event will create a new event in the events database table with the specified credentials.
 - Other error messages are provided for testing.
 
 View all users in the database: http://127.0.0.1:8000/users
+View all events in the database: http://127.0.0.1:8000/events
 
 
 
