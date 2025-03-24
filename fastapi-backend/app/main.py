@@ -1,13 +1,13 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db, Base, engine
-from app.models import User
-from app.schemas import CreateUser, UserResponse
-from app.crud import create_user, get_email
+from app.models import User, Event
+from app.schemas import CreateUser, UserResponse, CreateEvent, EventResponse
+from app.crud import create_user, get_email, get_event, create_event
 
 # file that defines the API endpoints to login and sign-up a user
 
-# intialize thr fastapi app
+# intialize the fastapi app
 app = FastAPI()
 
 # create database tables on startup -- only for in development
@@ -58,3 +58,30 @@ def get_all_users(db: Session = Depends(get_db)):
     # ORM query for all users
     users = db.query(User).all()
     return users
+
+# returns all events found in the user database
+@app.get("/events")
+def get_all_events(db: Session = Depends(get_db)):
+    # ORM query for all events
+    events = db.query(Event).all()
+    return events 
+
+
+# api endpoint to create an event, responding with the event response defined in schemas.py
+@app.post("/create-event", response_model=EventResponse)
+# need to interact with database (Depends(get_db))
+def event_creation(event: CreateEvent, db: Session = Depends(get_db)):
+    # require the user to provide a name, description, location, date, and time
+    if not event.name or not event.description or not event.location or not event.date or not event.time:
+        raise HTTPException(
+            status_code=400, detail="All fields are required (name, location, date, and time).")
+    # check if this event is already in the database
+    existing_event = get_event(db, event.name)
+    if existing_event:
+        raise HTTPException(
+            status_code=400, detail="Event already exists in Spark! Bytes.")
+
+    else:
+        # create a new event with these attributes in this db
+        new_event = create_event(db, event)
+        return new_event
