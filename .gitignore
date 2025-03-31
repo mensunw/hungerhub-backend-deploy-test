@@ -1,3 +1,5 @@
 venv/
 
 .env
+
+/fastapi-backend/app/__pycache__
