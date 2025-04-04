@@ -4,6 +4,7 @@ from app.database import get_db, Base, engine
 from app.models import User, Event
 from app.schemas import CreateUser, UserResponse, CreateEvent, EventResponse
 from app.crud import create_user, get_email, get_event, create_event
+import re
 
 # intialize the fastapi app
 app = FastAPI()
@@ -27,7 +28,23 @@ def signup(user: CreateUser, db: Session = Depends(get_db)):
     # require the user to provide an email and password
     if not user.email or not user.password:
         raise HTTPException(
-            status_code=400, detail="Email and password are required.")
+            status_code=422, detail="Email and password are required.")
+    
+    # check if the email contains @ symbol
+    if '@' not in user.email:
+        raise HTTPException(
+            status_code=422, detail="Invalid email address. Please provide a valid email address.")
+    
+    # check if the length of the password is at least 8 characters
+    if len(user.password) < 8:
+        raise HTTPException(
+                    status_code=422, detail="Password must be at least 8 characters.")
+    
+    # check that the password confines to these constraints: lowercase letter, uppercase letter, and a number
+    if (not re.search(r"\d", user.password)) or (not re.search(r"[A-Z]", user.password)) or (not re.search(r"[a-z]", user.password)):
+        raise HTTPException(
+                    status_code=422, detail="Password must contain at least one lowercase letter, uppercase letter, and number.")
+            
     # check if this email is already in use
     existing_user = get_email(db, user.email, user.password)
     if existing_user:
@@ -54,6 +71,7 @@ def login(user: CreateUser, db: Session = Depends(get_db)):
     Returns:
         - message: A success message indicating that the login was successful
     '''
+    # check if the email and password has been inputted
     if not user.email or not user.password:
         raise HTTPException(
             status_code=400, detail="Email and password are required.")
@@ -115,7 +133,7 @@ def event_creation(event: CreateEvent, db: Session = Depends(get_db)):
     # require the user to provide a name, description, location, date, and time
     if not event.name or not event.description or not event.location or not event.date or not event.time:
         raise HTTPException(
-            status_code=400, detail="All fields are required (name, location, date, and time).")
+            status_code=422, detail="All fields are required (name, location, date, and time).")
     
     # check if this event is already in the database
     existing_event = get_event(db, event.name)
