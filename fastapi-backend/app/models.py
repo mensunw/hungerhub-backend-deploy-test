@@ -30,12 +30,12 @@ class Event(Base):
     # actual table name in the database
     __tablename__ = "events"
 
-    # primary key is the id
-    id = Column(Integer, primary_key=True, index=True)
+    # primary key is a random generated id
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
 
     # event details -- name, description, location, date, and time
     name = Column(String, index=True)
-    description = Column(String, unique=True, index=True)
+    description = Column(String, index=True)
     location = Column(String, index=True)
     date = Column(String, index=True)
     time = Column(String, index=True)
@@ -46,7 +46,7 @@ SQLAlchemy will create a corresponding table like this:
 
 CREATE TABLE events (
     id SERIAL PRIMARY KEY,
-    name VARCHAR UNIQUE,
+    name VARCHAR,
     description VARCHAR,
     location VARCHAR,
     date VARCHAR,
