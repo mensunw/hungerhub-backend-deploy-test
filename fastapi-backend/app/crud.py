@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
-from app import models, schemas
+from app import models, schemas, auth
+from app.auth import hash_pwd
 
 def create_user(db: Session, user: schemas.CreateUser):
     '''
@@ -12,7 +13,12 @@ def create_user(db: Session, user: schemas.CreateUser):
     Returns:
         - db_user: User object representing the newly created user
     '''
-    db_user = models.User(email=user.email, password=user.password)
+    # hash the inputted password
+    hashed_pwd = hash_pwd(user.password)
+
+    # create a new instance of a user with the hashed password
+    db_user = models.User(email=user.email, password=hashed_pwd)
+
     # add this new user to the user table
     db.add(db_user)
     # save user to database
@@ -20,24 +26,6 @@ def create_user(db: Session, user: schemas.CreateUser):
     # updates the database instance with this user
     db.refresh(db_user)
     return db_user
-
-def get_email(db: Session, email: str, password: str):
-    '''
-    Query the users table using the ORM by email and password m -- checks if a user exists with inputted credentials (for login endpoint).
-    
-    Inputs: 
-        - db: Database session
-        - email: User's email
-        - password: User's password
-
-    Returns:
-        - db_user: User object representing the user with the given email and password, or None if no such user exists.
-    '''
-    return db.query(models.User).filter(
-        models.User.email == email,
-        models.User.password == password
-    ).first()
-
 
 def create_event(db: Session, event: schemas.CreateEvent):
     '''
@@ -73,3 +61,16 @@ def get_event(db: Session, name: str):
     return db.query(models.Event).filter(
         models.Event.name == name,
     ).first()
+
+def get_user_by_email(db: Session, email: str):
+    ''' 
+    Query the user table, using the inputted email address (for login authentication)
+
+    Inputs:
+        - db: Database session
+        - email: User's email
+    
+    '''
+    return db.query(models.User).filter(
+        models.User.email == email
+        ).first()

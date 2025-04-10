@@ -12,6 +12,8 @@ class User(Base):
     # user credentials: email and password -- will need to hash it in the future (just keep it the same for now)
     email = Column(String, unique=True, index=True)
     password = Column(String)
+    first_name = Column(String)
+    last_name = Column(String)
 
 '''
 SQLAlchemy will create a corresponding table like this:
