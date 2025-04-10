@@ -1,10 +1,14 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel, SecurityScheme
+from fastapi.openapi.utils import get_openapi
 from sqlalchemy.orm import Session
 from app.database import get_db, Base, engine
 from app.models import User, Event
-from app.schemas import CreateUser, UserResponse, CreateEvent, EventResponse
-from app.crud import create_user, get_email, get_event, create_event
+from app.schemas import CreateUser, UserResponse, CreateEvent, EventResponse, LoginUser
+from app.crud import create_user, get_event, create_event
 import re
+from app.auth import verify_pwd, create_access_token, hash_pwd
+from app.dependencies import get_current_user
 
 # intialize the fastapi app
 app = FastAPI()
@@ -17,18 +21,19 @@ def signup(user: CreateUser, db: Session = Depends(get_db)):
     API endpoint to sign up a new user. It requires the user to provide an email and password.
     If the email is already registered, it raises an HTTPException with a 400 status code.
     If the email is not registered, it creates a new user with the provided credentials and returns the user response.
+    Hashes the password before storing it in the database.
     
     Inputs: 
-        - user: CreateUser object containing email and password
+        - user: CreateUser object containing email, name, and password
         - db: Database session
 
     Returns: 
-        - new_user: UserResponse object containing the newly created user's information (email and password)
+        - new_user: UserResponse object containing the newly created user's information 
     '''
-    # require the user to provide an email and password
-    if not user.email or not user.password:
+    # require the user to provide an email, password, and name
+    if not user.email or not user.password or not user.first_name or not user.last_name:
         raise HTTPException(
-            status_code=422, detail="Email and password are required.")
+            status_code=422, detail="Email, password, and name are required.")
     
     # check if the email contains @ symbol
     if '@' not in user.email:
@@ -46,60 +51,60 @@ def signup(user: CreateUser, db: Session = Depends(get_db)):
                     status_code=422, detail="Password must contain at least one lowercase letter, uppercase letter, and number.")
             
     # check if this email is already in use
-    existing_user = get_email(db, user.email, user.password)
+    existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(
             status_code=400, detail="Email already registered in Spark! Bytes.")
 
     else:
-        # create a new user with these credentials in this db
-        new_user = create_user(db, user)
+        # hash the password
+        hashed_password = hash_pwd(user.password)
+
+        # create user model and save
+        new_user = User(email=user.email, password=hashed_password, first_name=user.first_name, last_name=user.last_name)
+        # add this new user to the corresponding table
+        db.add(new_user)
+        # save user to database
+        # commit the changes to the database
+        db.commit()
+        # refresh the instance to get the updated data from the database
+        db.refresh(new_user)
         return new_user
 
 
 @app.post("/login")
-def login(user: CreateUser, db: Session = Depends(get_db)):
+def login(user: LoginUser, db: Session = Depends(get_db)):
     '''
     API endpoint to log in a user. It requires the user to provide an email and password.
     If the email and password do not match any existing user, it raises an HTTPException with a 400 status code.
-    If the email and password match an existing user, it returns a success message.
+    If the email and password match an existing user, it returns a JWT access token.
 
     Inputs:
         - user: CreateUser object containing email and password
         - db: Database session
     
     Returns:
-        - message: A success message indicating that the login was successful
+        - access_token: A JWT access token string for the authenticated user
+        - token_type: The type of token (bearer)
     '''
     # check if the email and password has been inputted
     if not user.email or not user.password:
         raise HTTPException(
             status_code=400, detail="Email and password are required.")
 
-    existing_user = get_email(db, user.email, user.password)
     # check if the user already exists or not in the users table
-    if not existing_user:
+    existing_user = db.query(User).filter(User.email == user.email).first()
+    # ensure the inputted password is correct
+    if not existing_user or not verify_pwd(user.password, existing_user.password):
         raise HTTPException(
             status_code=400, detail="Incorrect email or password. Please try again.")
 
-    else:
-        return {"message": "Login successful"}
+    token = create_access_token(data={"sub": existing_user.email})
 
-
-@app.get("/users")
-def get_all_users(db: Session = Depends(get_db)):
-    '''
-    API endpoint to retrieve all users from the database (just for testing purposes).
-    
-    Input:
-        - db: Database session
-    Returns:
-        - users: A list of User objects representing all users in the database
-    '''
-    # ORM query for all users
-    users = db.query(User).all()
-    return users
-
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
 
 @app.get("/events")
 def get_all_events(db: Session = Depends(get_db)):
@@ -145,3 +150,47 @@ def event_creation(event: CreateEvent, db: Session = Depends(get_db)):
         # create a new event with these attributes in this db
         new_event = create_event(db, event)
         return new_event
+    
+@app.get("/profile", response_model=UserResponse)
+def read_current_user(current_user: User = Depends(get_current_user)):
+    '''
+    Uses FastAPI's Depends() system to automatically inject the currently 
+    authenticated user via the get_current_user() function.
+
+    Input:
+        - current_user: User model instance that is automatically fetched from the decoded 
+        JWT and matched in the DB
+
+    Returns:
+        - email: returns user details (name and email)
+    '''
+    return current_user
+
+def custom_openapi():
+    '''
+    A security schema in FastAPI/OpenAPI is a way to tell Swaggers these routes are protected. 
+    and how clients should authenticate.
+    
+    '''
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="Your API",
+        version="1.0.0",
+        description="API with JWT auth",
+        routes=app.routes,
+    )
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    }
+    for path in openapi_schema["paths"].values():
+        for method in path.values():
+            method["security"] = [{"BearerAuth": []}]
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi

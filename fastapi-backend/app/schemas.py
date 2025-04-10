@@ -4,11 +4,15 @@ from pydantic import BaseModel
 class CreateUser(BaseModel):
     email: str
     password: str
+    first_name: str
+    last_name: str
 
 # used for response formatting when returning user data (excluding the password)
 class UserResponse(BaseModel):
     id: int
     email: str
+    first_name: str
+    last_name: str
 
     class Config:
         # allows to work with SQLAlchemy object relational models
@@ -30,3 +34,8 @@ class EventResponse(BaseModel):
     class Config:
         # allows to work with SQLAlchemy object relational models
         orm_mode = True
+
+# used for formatting request when logining in a user
+class LoginUser(BaseModel):
+    email: str
+    password: str
