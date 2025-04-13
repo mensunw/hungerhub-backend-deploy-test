@@ -6,3 +6,5 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+/fastapi-backend/app/__pycache__
