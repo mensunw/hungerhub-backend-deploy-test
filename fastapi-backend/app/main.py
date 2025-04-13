@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel, SecurityScheme
 from fastapi.openapi.utils import get_openapi
 from sqlalchemy.orm import Session
@@ -12,6 +13,16 @@ from app.dependencies import get_current_user
 
 # intialize the fastapi app
 app = FastAPI()
+
+# allow requests from the frontend to the endpoints
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # frontend origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # create database tables on startup -- only for in development
 Base.metadata.create_all(bind=engine)
 
