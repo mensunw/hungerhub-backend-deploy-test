@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel, SecurityScheme
 from fastapi.openapi.utils import get_openapi
 from sqlalchemy.orm import Session
@@ -12,6 +13,16 @@ from app.dependencies import get_current_user
 
 # intialize the fastapi app
 app = FastAPI()
+
+# allow requests from the frontend to the endpoints
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # frontend origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # create database tables on startup -- only for in development
 Base.metadata.create_all(bind=engine)
 
@@ -166,10 +177,66 @@ def read_current_user(current_user: User = Depends(get_current_user)):
     '''
     return current_user
 
+@app.put("/events/{event_id}", response_model=EventResponse)
+def update_event(event_id: int, updated_event: CreateEvent, db: Session = Depends(get_db)):
+    '''
+    API endpoint used for updating an event -- using its primary key (ID number).
+
+    Inputs: 
+        - event_id: specific ID number for the event (as stored in the events DB)
+        - db: Database session
+    
+    Returns:
+        - event: the updated event with the new credentials
+    
+    '''
+
+    # filters the events database by ID number
+    event = db.query(Event).filter(Event.id == event_id).first()
+    
+    # if there is no event with that ID number, throw an error
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found.")
+
+    # update the event attributes (e.g. name, description, location, date, and time)
+    event.name = updated_event.name
+    event.description = updated_event.description
+    event.location = updated_event.location
+    event.date = updated_event.date
+    event.time = updated_event.time
+
+    # commit to the event db
+    db.commit()
+    db.refresh(event)
+    return event
+
+@app.delete("/events/{event_id}")
+def delete_event(event_id: int, db: Session = Depends(get_db)):
+    """
+    API endpoint to delete an event by its primary key (ID number).
+    Returns nothing.
+
+    Inputs:
+        - event_id: the unique ID of the event to delete
+        - db: database session
+
+    """
+    # filters the events database by ID number
+    event = db.query(Event).filter(Event.id == event_id).first()
+
+    # if there is no event with that ID number, throw an error
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found.")
+
+    # delete the found event
+    db.delete(event)
+    # commit to the database
+    db.commit()
+
 def custom_openapi():
     '''
     A security schema in FastAPI/OpenAPI is a way to tell Swaggers these routes are protected. 
-    and how clients should authenticate.
+    and how clients should authenticate. (Only relevant for testing in FastAPI -- ignore it essentially)
     
     '''
     if app.openapi_schema:
