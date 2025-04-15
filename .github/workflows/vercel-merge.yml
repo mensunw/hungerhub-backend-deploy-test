@@ -1,0 +1,44 @@
+name: Deploy Backend to Vercel on Merge
+
+on:
+  push:
+    branches:
+      - main  # This triggers the workflow when code is merged into the 'main' branch
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Navigate to the backend directory 
+      - name: Change to backend directory
+        run: cd fastapi-backend  
+
+      # Set up Python for the backend
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'  
+
+      # Install backend dependencies
+      - name: Install dependencies
+        run: |
+          cd fastapi-backend  
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  
+
+      # Deploy to Vercel using the vercel-action
+      - uses: amondnet/vercel-action@v25
+        id: vercel-deploy
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          vercel-args: "--prod"  
+          vercel-org-id: ${{ secrets.ORG_ID }}
+          vercel-project-id: ${{ secrets.PROJECT_ID }}
