@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "fastapi-backend/app/main.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "installCommand": "pip install -r fastapi-backend/requirements.txt"
+      }
     }
   ],
   "routes": [
